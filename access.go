@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -219,7 +220,7 @@ func (s *Server) handleAuthorizationCodeRequest(w *Response, r *http.Request) *A
 		ret.RedirectUri = realRedirectUri
 	}
 	if ret.AuthorizeData.RedirectUri != ret.RedirectUri {
-		s.setErrorAndLog(w, E_INVALID_REQUEST, errors.New("Redirect uri is different"), "auth_code_request=%s", "client redirect does not match authorization data")
+		s.setErrorAndLog(w, E_INVALID_REQUEST, errors.New("Redirect uri is different"), "auth_code_request=%s", fmt.Sprintf("client redirect does not match server: %s != %s", ret.AuthorizeData.RedirectUri, ret.RedirectUri))
 		return nil
 	}
 
@@ -556,9 +557,10 @@ func (s Server) getClient(auth *BasicAuth, storage Storage, w *Response) Client 
 // setErrorAndLog sets the response error and internal error (if non-nil) and logs them along with the provided debug format string and arguments.
 func (s Server) setErrorAndLog(w *Response, responseError string, internalError error, debugFormat string, debugArgs ...interface{}) {
 	format := "error=%v, internal_error=%#v " + debugFormat
+	msg := fmt.Sprintf(format, append([]interface{}{responseError, internalError}, debugArgs...)...)
 
 	w.InternalError = internalError
-	w.SetError(responseError, "")
+	w.SetError(responseError, fmt.Sprint(debugArgs...))
 
-	s.Logger.Printf(format, append([]interface{}{responseError, internalError}, debugArgs...)...)
+	s.Logger.Printf(msg)
 }
